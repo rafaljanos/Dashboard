@@ -12,7 +12,8 @@ function makeGraphs(error, salaryData) {// function for that name we choose
     show_discipline_selector(ndx);      // passind NDX filter to a function that will draw graph discipline_selector
     show_gender_balance(ndx);           // passind NDX filter to a function that will draw graph gender_balance
     show_average_salaries(ndx);         // any name
-                                        
+    show_rank_distribution(ndx);      
+    
     dc.renderAll();                     // to render it all
 }    
  
@@ -88,3 +89,74 @@ function show_average_salaries(ndx) {
         .yAxis().ticks(4);
 }
 
+function show_rank_distribution(ndx) {
+    
+    
+    
+    var profByGender = dim.group().reduce(
+        function (p, v) {
+            p.total++;
+            if(v.rank == rank) {           // match if the rank what we are looking for is profesor
+                p.match++;
+            }
+            return p;
+        },
+        function (p, v) {
+            p.total--;
+            if(v.rank == rank)  {          // match if the rank what we are looking for is profesor
+                p.mach--;
+            }
+            return p;
+        },
+        function () {
+            return {total: 0, match: 0};
+        }
+    );
+    
+    function rankByGender(dimension, rank) {
+        return dimension.group().reduce(
+        function (p, v) {
+            p.total++;
+            if(v.rank == rank) {           // match if the rank what we are looking for is profesor
+                p.match++;
+            }
+            return p;
+        },
+        function (p, v) {
+            p.total--;
+            if(v.rank == rank)  {          // match if the rank what we are looking for is profesor
+                p.mach--;
+            }
+            return p;
+        },
+        function () {
+            return {total: 0, match: 0};
+        }
+    );
+    }
+    
+    var profByGender = rankByGender(dim, "Prof");
+    var asstProfByGender = rankByGender(dim, "AsstProf");
+    var assocProfByGender = rankByGender(dim, "AssocProf");
+    
+    // console.log(profByGender.all());        // to inspect and check if that works
+  
+    dc.barChart("#rank-distribution")
+        .width(400)
+        .height(300)
+        .dimension(dim)
+        .group(profByGender, "Prof")
+        .stack(asstProfByGender, "Asst Prof")       // stacks this group on top of prof
+        .stack(assocProfByGender, "Assoc Prof")     // stacks this group on top of asst
+        .valueAccessor(function(d) {               // geting procentage of the total
+            if(d.value.total > 0) {
+                 return (d.value.match / d.value.total) * 100; //matching amount devide by total and multiply by 100
+            } else {
+                return 0;
+            }
+    })
+        .x(d3.scale.ordinal())
+        .xUnits(dc.units.ordinal)
+        .legend(dc.legend().x(320).y(20).itemHeight(15).gap(5))
+        .margins({top: 10, right: 100, bottom: 30, left: 30});
+}
