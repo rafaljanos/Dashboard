@@ -7,12 +7,22 @@ function makeGraphs(error, salaryData) {// function for that name we choose
     
     salaryData.forEach(function(d) {
         d.salary = parseInt(d.salary);  // changing the text data salary to intedur version of the salary
+        d.yrs_since_phd = parseInt(d["yrs.since.phd"]);
+        d.yrs_service = parseInt(d["yrs.service"]);
+        
     })
     
     show_discipline_selector(ndx);      // passind NDX filter to a function that will draw graph discipline_selector
+    
+    show_percent_that_are_professors(ndx, "Female", "#percent-of-women-professors");
+    show_percent_that_are_professors(ndx, "Male", "#percent-of-men-professors");
+    
     show_gender_balance(ndx);           // passind NDX filter to a function that will draw graph gender_balance
     show_average_salaries(ndx);         // any name
-    show_rank_distribution(ndx);      
+    show_rank_distribution(ndx);   
+    
+    show_service_to_salary_correlation(ndx);
+    show_phd_to_salary_correlation(ndx);
     
     dc.renderAll();                     // to render it all
 }    
@@ -25,6 +35,46 @@ function show_discipline_selector(ndx) {        // function for show_discipline_
         .dimension(dim)
         .group(group);
 }
+ 
+function show_percent_that_are_professors(ndx, gender, element) { // gender(sex)argument and element to use in next function
+    var percentageThatAreProf = ndx.groupAll().reduce(
+        function (p, v) {  
+            if (v.sex === gender) {                             //using gender argument from above
+                p.count++;
+                if (v.rank === "Prof") {
+                    p.are_prof++;
+                }
+            }
+            return p;
+        },    
+         function (p, v) {  
+            if (v.sex === gender) {
+                p.count--;
+                if (v.rank === "Prof") {
+                    p.are_prof--;
+                }
+            }
+            return p;
+        },   
+        function () {
+            return {count: 0, are_prof: 0};
+        },
+    );
+    
+    
+    dc.numberDisplay(element)                   // element where we want the number to display
+        .formatNumber(d3.format(".2%"))         // format change the way numbers are displayed
+        .valueAccessor(function (d) {
+            if (d.count == 0) {
+                return 0;
+            } else {
+                return (d.are_prof / d.count);// devide prof by them total count
+            }
+        })
+        .group(percentageThatAreProf)// show which group data to use to calculate this
+
+    
+} 
  
 function show_gender_balance(ndx) {           // function for show_gender_balance
     var dim = ndx.dimension(dc.pluck(`sex`)); // create dimension of sex variable
@@ -131,8 +181,8 @@ function show_rank_distribution(ndx) {
         },
         function () {
             return {total: 0, match: 0};
-        }
-    );
+            }
+        );
     }
     
     var profByGender = rankByGender(dim, "Prof");
@@ -159,4 +209,78 @@ function show_rank_distribution(ndx) {
         .xUnits(dc.units.ordinal)
         .legend(dc.legend().x(320).y(20).itemHeight(15).gap(5))
         .margins({top: 10, right: 100, bottom: 30, left: 30});
+}
+
+
+function show_service_to_salary_correlation(ndx) {
+    
+    var genderColors = d3.scale.ordinal()    //adding colors genderColors
+        .domain(["Female", "Male"])
+        .range(["pink", "green"]);
+    
+    var eDim = ndx.dimension(dc.pluck("yrs_service"));
+    var experienceDim = ndx.dimension(function(d) {             //extrackts 2 pieces of info
+        return [d.yrs_service, d.salary, d.rank, d.sex];        //years of service and salary
+    });             //0         //1        //2    //3
+    var experienceSalaryGroup = experienceDim.group();
+
+    var minExperience = eDim.bottom(1)[0].yrs_service;
+    var maxExperience = eDim.top(1)[0].yrs_service;
+
+    dc.scatterPlot("#service-salary")
+        .width(800)
+        .height(400)
+        .x(d3.scale.linear().domain([minExperience, maxExperience]))
+        .brushOn(false)
+        .symbolSize(8)
+        .clipPadding(10)
+        .yAxisLabel("Salary")
+        .xAxisLabel("Years Of Service")
+        .title(function(d) {                        //apear when hovered with mouse
+            return d.key[2] + " earned " + d.key[1];
+        })
+        .colorAccessor(function (d) {
+            return d.key[3];  //3 is d.rank 
+        })
+        .colors(genderColors)           //adding colors genderColors
+        .dimension(experienceDim)
+        .group(experienceSalaryGroup)
+        .margins({top: 10, right: 50, bottom: 75, left: 75});
+}
+
+
+function show_phd_to_salary_correlation(ndx) {
+    
+    var genderColors = d3.scale.ordinal()    //adding colors genderColors
+        .domain(["Female", "Male"])
+        .range(["pink", "green"]);
+    
+    var pDim = ndx.dimension(dc.pluck("yrs_since_phd"));
+    var phdDim = ndx.dimension(function(d) {             //extrackts 2 pieces of info
+        return [d.yrs_since_phd, d.salary, d.rank, d.sex];        //years of service and salary
+    });             //0         //1        //2    //3
+    var phdSalaryGroup = phdDim.group();
+
+    var minPhd = pDim.bottom(1)[0].yrs_since_phd;
+    var maxPhd = pDim.top(1)[0].yrs_since_phd;
+
+    dc.scatterPlot("#phd-salary")
+        .width(800)
+        .height(400)
+        .x(d3.scale.linear().domain([minPhd, maxPhd]))
+        .brushOn(false)
+        .symbolSize(8)
+        .clipPadding(10)
+        .yAxisLabel("Salary")
+        .xAxisLabel("Years Since PhD")
+        .title(function(d) {                        //apear when hovered with mouse
+            return d.key[2] + " earned " + d.key[1];
+        })
+        .colorAccessor(function (d) {
+            return d.key[3];  //3 is d.rank 
+        })
+        .colors(genderColors)           //adding colors genderColors
+        .dimension(phdDim)
+        .group(phdSalaryGroup)
+        .margins({top: 10, right: 50, bottom: 75, left: 75});
 }
